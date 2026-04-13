@@ -2,8 +2,10 @@ const express = require("express");
 const fs = require("fs");
 
 const app = express();
+
+// Middleware to read data
 app.use(express.json());
-app.use(express.text()); //
+app.use(express.text());
 
 let ipStore = {};
 let blockedIPs = new Set();
@@ -22,23 +24,35 @@ app.use((req, res, next) => {
 // Tracking endpoint
 app.post("/track", (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  let data;
 
-if (typeof req.body === "string") {
-  data = JSON.parse(req.body);
-} else {
-  data = req.body;
-}
+  let data = {};
 
-const { session_time, no_click, no_scroll } = data;
+  try {
+    if (typeof req.body === "string") {
+      data = JSON.parse(req.body);
+    } else {
+      data = req.body;
+    }
+  } catch (e) {
+    return res.sendStatus(200);
+  }
+
+  const { session_time, no_click, no_scroll } = data;
+
+  // Ignore empty data
+  if (!session_time) {
+    return res.sendStatus(200);
+  }
 
   let score = 0;
   const now = Date.now();
 
+  // Rule 1
   if (session_time < 3 && no_click && no_scroll) {
     score += 80;
   }
 
+  // Rule 2
   if (!ipStore[ip]) ipStore[ip] = [];
   ipStore[ip].push(now);
 
@@ -48,6 +62,7 @@ const { session_time, no_click, no_scroll } = data;
     score += 80;
   }
 
+  // Block condition
   if (score > 80) {
     blockedIPs.add(ip);
 
@@ -66,6 +81,7 @@ const { session_time, no_click, no_scroll } = data;
   res.sendStatus(200);
 });
 
+// Start server
 app.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
 });
