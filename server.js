@@ -3,6 +3,7 @@ const fs = require("fs");
 
 const app = express();
 app.use(express.json());
+app.use(express.text()); //
 
 let ipStore = {};
 let blockedIPs = new Set();
@@ -21,7 +22,15 @@ app.use((req, res, next) => {
 // Tracking endpoint
 app.post("/track", (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const { session_time, no_click, no_scroll } = req.body;
+  let data;
+
+if (typeof req.body === "string") {
+  data = JSON.parse(req.body);
+} else {
+  data = req.body;
+}
+
+const { session_time, no_click, no_scroll } = data;
 
   let score = 0;
   const now = Date.now();
